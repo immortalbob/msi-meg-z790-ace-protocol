@@ -85,7 +85,7 @@ then system fans 1 to 6 (PUBLISHED by LibreHardwareMonitor).
 | 4 | 4 | SYS_FAN3 | nothing connected |
 | 5 | 5 | SYS_FAN4 | nothing connected |
 | 6 | 6 | SYS_FAN5 | nothing connected |
-| 7 | 7 | "SYS_FAN6" | nothing connected; the board is listed with five system headers, so what channel 7 drives is UNKNOWN |
+| 7 | 7 | "SYS_FAN6" | nothing connected; the board is listed with five system headers, so what channel 7 drives is UNKNOWN. **Its output register does not follow a manual command** (OBSERVED 2026-11-03): held at `0xFF` for two minutes with `0xA00` bit 7 set and the command re-written twice, `0x160`+7 stayed at `0x80` (50 %) throughout, while channels 0 to 6 reported their commanded `0xFF`. So channel 7 may have no PWM output at all, or one the EC drives from elsewhere; a host should not expect its readback to confirm a write |
 
 Every channel was held at a fixed duty and handed back to the BIOS without error, and `0xA00` read `0x00` after each
 hand-back (OBSERVED 2026-10-27). Headers 2 and 4-7 had nothing plugged in, so their physical positions rest on the
@@ -165,7 +165,15 @@ All PUBLISHED. Whether a header outputs PWM or DC follows the BIOS setting; the 
 (40 %), which the EC ignores while the bit is clear; outputs `0x160`+i: CPU_FAN1 `0x9B` (61 %), a minute later `0xB9`
 (73 %), PUMP_FAN1 `0xFF` (100 %, nothing connected), system fans 1-5 `0x99` (60 %), channel 7 `0x80` (50 %).
 Every channel had been held and handed back by third-party code before, so whether the BIOS itself leaves `0x66` in
-`0xA28`+i is UNKNOWN.
+`0xA28`+i is UNKNOWN. The same read on 2026-11-03 (BIOS control, `0xA00 = 0x00`, every command byte `0x66`) gave
+CPU_FAN1 `0x9D`, PUMP_FAN1 `0xFF`, SYS_FAN1 and SYS_FAN3-5 `0x99`, **SYS_FAN2 `0x00`** (the BIOS curve had that
+header at 0 %; a fan hub's tach lead is all that is plugged in there) and channel 7 `0x80` again, so the outputs
+under BIOS control move with the curves except channel 7, which has read `0x80` at every observation.
+
+**All eight channels under manual control at once** (OBSERVED 2026-11-03): a thermal emergency in the host program put
+every channel to `0xFF` within one second (`0xA00 = 0xFF`), the outputs of channels 0 to 6 followed, and the hand-back
+afterwards cleared every bit with the sequence of section 5.2 (two restore cycles for some channels, as under the
+single-channel tests).
 
 ### 4.5 Identity bytes
 
@@ -183,7 +191,8 @@ LibreHardwareMonitor's sequence for the plain NCT6687D (PUBLISHED):
 3. write `0xA28`+i = duty (0..255; 60 % = 153);
 4. write `0xA01` = `0x40`, wait 50 ms.
 
-It reads nothing back. Verify through `0x160`+i on the next read. Clamp the percentage yourself before converting
+It reads nothing back. Verify through `0x160`+i on the next read (channel 7 excepted: its output register never
+followed a command, section 3). Clamp the percentage yourself before converting
 (one library converts with an unclamped `byte(percent × 2.55)`).
 
 The Linux driver uses a stronger handshake for this chip (PUBLISHED; not tried on this board): wait up to 1 s until

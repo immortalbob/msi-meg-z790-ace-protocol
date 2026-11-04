@@ -31,8 +31,8 @@ The Mystic Light protocol family and the NCT6687D registers were already known f
 Credits), but scattered across code for many boards, with nothing that said which parts apply to this board, what
 MSI's own software actually sends, or how the pieces behave together. On 2026-10-30 the USB traffic between MSI
 Center and the lighting controller was captured with USBPcap while every lighting function was exercised. From
-2026-10-26 to 2026-11-02 both controllers were driven on the same board by independently written third-party code,
-and MSI's software was finally removed. This reference writes down what was seen, what earlier projects published,
+2026-10-26 to 2026-11-04 both controllers were driven on the same board by independently written third-party code,
+and MSI's software was removed on 2026-11-02. This reference writes down what was seen, what earlier projects published,
 and what is still unknown.
 
 ## Scope
@@ -76,6 +76,8 @@ same root hub); every frame that matters is described in the documents.
 | 2026-10-26 to 10-27 | every fan channel held at a fixed duty and handed back to the BIOS with `0xA00` read back; which header carries which tach; every lighting zone set on its own and mapped to the board; the readback is the live state; direct mode in non-sync mode; restoring the start-up configuration; MSI's re-apply after a monitor power cycle |
 | 2026-10-28 to 11-01 | the controllers under a Windows service across reboots, shutdowns and sleep |
 | 2026-11-02 | firmware query; EC state and identity bytes; an S3 sleep with both controllers read before and after; the removal of MSI Center, the BIOS option and the reinstall device |
+| 2026-11-03 | one hidden lighting effect (Water drop, 8) on JRAINBOW1; all eight fan channels at `0xFF` at once during a thermal emergency and handed back afterwards; channel 7's output register not following its command; a second reading of the outputs under BIOS control |
+| 2026-11-04 | the configuration readback's lag behind a write, from the driver logs of 2026-11-02 to 11-04 and a readback 200 ms after the write |
 
 ## Sources
 

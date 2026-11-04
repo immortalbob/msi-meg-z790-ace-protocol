@@ -151,19 +151,32 @@ zones can follow through the sync bits in its colour flags (offset 82) and the s
 | 36 | Stack | |
 | 37 (`0x25`) | **reserved**: in the ONBOARD slot this value is the per-LED direct mode (section 7) | never send as an effect |
 | 38 | Fire | |
-| 6, 8-14, 25, 28, 30-34, 39 | MSI Marquee, Water drop, MSI Rainbow, Pop, Rap, Jazz, Play, Movie, Rainbow, JRainbow, Rainbow double flashing, Random, Fan control, Disable 2, Colour ring flashing, Lava | defined by OpenRGB but not offered; behaviour UNKNOWN |
+| 6, 8-14, 25, 28, 30-34, 39 | MSI Marquee, Water drop, MSI Rainbow, Pop, Rap, Jazz, Play, Movie, Rainbow, JRainbow, Rainbow double flashing, Random, Fan control, Disable 2, Colour ring flashing, Lava | defined by OpenRGB but not offered. **Water drop (8) OBSERVED 2026-11-03** on JRAINBOW1 (volatile, one zone, one minute): the controller took the slot value, stayed enumerated and answered the readback with 8 in the slot, the ARGB strip showed a water-drop animation in the chosen colour, and the next regular effect replaced it; the other fifteen are UNKNOWN |
 
 IDs and names were first published by OpenRGB, which offers the 22 effects listed without a note plus its own
 "Direct" pseudo-mode (its internal value 100, never sent on the wire). **Warning:** OpenRGB disabled Mystic Light
 for a time after a controller on another MSI board (MPG X570 Gaming Pro Carbon WiFi) stopped responding on USB
 after Double meteor was set (OpenRGB issue #389, PUBLISHED). MSI Center sends 17 on this board without harm
-(CAPTURED), but treat the effects OpenRGB does not offer as untested: one zone at a time, never saved.
+(CAPTURED), but treat the effects OpenRGB does not offer as untested: one zone at a time, never saved. One data
+point exists: Water drop (8) ran on JRAINBOW1 for a minute without harm (OBSERVED 2026-11-03, see the table); Double
+meteor itself was not tried.
 
 ## 5. Reading the configuration
 
 `GET_REPORT(Feature 0x52)` returns 185 bytes in the layout of section 4. **It returns the live state, not only the
 stored image** (OBSERVED 2026-10-27: a volatile write read back as written). At start-up the same read returned
 the image MSI Center had last written (CAPTURED 2026-10-30).
+
+**But the live state lags the write** (OBSERVED 2026-11-02 to 11-04, from the logs of a third-party driver that read
+back once right after each volatile write): a `GET_REPORT` issued at once, inside the same mutex hold as the
+`SET_REPORT`, returned the **previous** image every time two writes went out back to back (the driver's scene
+applied its zones 10 to 20 ms apart), and a read 16 ms after a write still showed the image from before it, while a
+read 48 s after the previous write showed the written image, as the 2026-10-27 test with commands seconds apart had.
+A read 200 ms after the write returned the written image at the first attempt (OBSERVED 2026-11-04). So the
+controller applies a configuration write asynchronously, somewhere between 16 and 200 ms after accepting it. Two
+consequences for a host: a readback used to verify a write must wait, and a read-modify-write that follows another
+write closely must build on what the host wrote, not on a readback that may predate it, or the second write undoes
+the first. MSI Center sidesteps both by always writing the whole image from its own state (section 6).
 
 Things to check in a readback:
 

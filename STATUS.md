@@ -9,9 +9,9 @@ Part of the [MSI MEG Z790 ACE reference](README.md). One row per item; the tags 
 |---|---|---|---|---|
 | transport | feature reports on the control pipe; inbox HID | yes | yes | the collection's exact report descriptor and caps |
 | `0x52` configuration, 185 bytes | complete (PUBLISHED); slot offsets for this board confirmed | yes (GET and SET) | yes (2026-10-27) | colour-flags bit 6; why MSI changed offset 133 |
-| readback | GET returns the live state | yes | yes (2026-10-27) | |
+| readback | GET returns the live state, applied with a delay: a read right after the write (and 16 ms after it) still shows the previous image, a read 200 ms after it shows the written one | yes | yes (2026-10-27 live; 2026-11-02 to 11-04 the lag) | the exact delay (between 16 and 200 ms) |
 | zone map | JRGB1, JPIPE1 (18), JPIPE2 (4), JRAINBOW1-3; physical locations | per-header names yes | yes (2026-10-27) | which of MSI's names "IO / PCH Cover" / "M.2_1" is JPIPE1 or JPIPE2 |
-| effect IDs | complete list (PUBLISHED) | 2, 7, 17, 26 | several of the 22 offered ones, Rainbow wave in daily use | the 16 not offered by OpenRGB; effect 0 |
+| effect IDs | complete list (PUBLISHED) | 2, 7, 17, 26 | several of the 22 offered ones, Rainbow wave in daily use; Water drop (8, not offered by OpenRGB) on JRAINBOW1 without harm (2026-11-03) | the other 15 not offered by OpenRGB; effect 0 |
 | speed and brightness | complete | yes (slider positions) | yes | |
 | colour 2 | field known | MSI always writes colour 2 = colour 1 | no | what each effect does with a distinct colour 2 |
 | sync bits (ONBOARD slot) | complete for MSI's use | yes ("SELECT ALL" = `0xB1` / `0x31`) | yes | |
@@ -37,9 +37,9 @@ Part of the [MSI MEG Z790 ACE reference](README.md). One row per item; the tags 
 | voltages | decode complete | partly | rail names other than +12V, +5V, Vcore, DIMM |
 | fan RPM slots 0-7 | complete | CPU_FAN1 and SYS_FAN2 with devices attached | |
 | fan RPM slots 8-16 | registers known | no | PUMP_FAN2 at slot 8? |
-| manual control `0xA00`/`0xA01`/`0xA28`/`0x160` | complete (PUBLISHED) | every channel held and handed back (2026-10-27) | the Linux `0xCF8` handshake on this board; 0 % on these headers |
-| channel ↔ header map | bit order PUBLISHED | channels 0 and 3 (2026-10-26/27) | channels 1, 2, 4-7 by spin test; what channel 7 drives |
-| `0xA28` + i under BIOS control | | `0x66` on all channels (after earlier hand-backs) | whether the BIOS writes it |
+| manual control `0xA00`/`0xA01`/`0xA28`/`0x160` | complete (PUBLISHED) | every channel held and handed back (2026-10-27); all eight at `0xFF` at once and handed back (2026-11-03) | the Linux `0xCF8` handshake on this board; 0 % on these headers |
+| channel ↔ header map | bit order PUBLISHED | channels 0 and 3 (2026-10-26/27); channel 7's output register stays `0x80` under a manual `0xFF` (2026-11-03) | channels 1, 2, 4-7 by spin test; what channel 7 drives, if anything |
+| `0xA28` + i under BIOS control | | `0x66` on all channels (after earlier hand-backs; again 2026-11-03) | whether the BIOS writes it |
 | sleep and restart | | `0xA00` stayed `0x00` through S3 and restarts (2026-11-02) | a manual setting across S3 |
 | PUMP_FAN2 control | | | no register known |
 | EC curve programming | known only for the `-R`/`DR` variant | | for the plain NCT6687D |
@@ -59,6 +59,14 @@ Part of the [MSI MEG Z790 ACE reference](README.md). One row per item; the tags 
 
 ## Change log
 
+- **2026-11-04, update.** Mystic Light: the configuration readback is the live state **but lags the write** (section
+  5 of the lighting document): a read right after a `SET_REPORT`, or 16 ms after it, still returns the previous image,
+  a read 200 ms after it returns the written image; found in the logs of a third-party driver whose immediate
+  verification read called the readback "stored" at every start when two zones were written back to back. Water
+  drop (8), one of the effect IDs OpenRGB does not offer, ran on JRAINBOW1 without harm (section 4.4). NCT6687D:
+  all eight channels held at `0xFF` at once and handed back; channel 7's output register (`0x160`+7) stays at `0x80`
+  under a manual `0xFF`, unlike channels 0 to 6, so what channel 7 drives, if anything, stays open (sections 3, 4.4
+  and 5); a second reading of the outputs under BIOS control. README bench table extended; rows above updated.
 - **2026-11-02, first edition.** Written from one USBPcap capture of MSI Center driving the Mystic Light controller
   (2026-10-30, 14 segments), read-only inspection of MSI's installed software, bench sessions with independently
   written code (2026-10-26 to 2026-11-02, including the removal of MSI Center), and the open-source projects credited
